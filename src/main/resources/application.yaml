@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: Daraja Integration Toolkit
+
+  profiles:
+    active: dev
