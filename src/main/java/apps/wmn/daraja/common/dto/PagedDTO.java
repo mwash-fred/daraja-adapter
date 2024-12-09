@@ -1,8 +1,9 @@
 package apps.wmn.daraja.common.dto;
 
-import com.fortuneconnectltd.com.notifications.common.util.PageLinks;
-import com.fortuneconnectltd.com.notifications.common.util.PageMetadata;
 import java.util.List;
+
+import apps.wmn.daraja.common.util.PageLinks;
+import apps.wmn.daraja.common.util.PageMetadata;
 import org.springframework.data.domain.Page;
 
 public record PagedDTO<T>(

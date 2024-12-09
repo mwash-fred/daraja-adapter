@@ -1,10 +1,10 @@
 package apps.wmn.daraja.common.config;
 
-import com.fortuneconnectltd.com.notifications.common.dto.ApiResponse;
-import com.fortuneconnectltd.com.notifications.common.exceptions.RecordNotFoundException;
-import com.fortuneconnectltd.com.notifications.common.exceptions.SmtpAuthenticationException;
 import java.util.HashMap;
 import java.util.Map;
+
+import apps.wmn.daraja.common.dto.ApiResponse;
+import apps.wmn.daraja.common.exceptions.RecordNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,13 +31,6 @@ public class GlobalExceptionHandler {
         }
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error("Validation failed", errors));
-    }
-
-    @ExceptionHandler(SmtpAuthenticationException.class)
-    public ResponseEntity<ApiResponse<Void>> handleSmtpAuthenticationException(SmtpAuthenticationException ex) {
-        log.debug("SMTP authentication failed", ex);
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error("SMTP authentication failed", ex.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)
