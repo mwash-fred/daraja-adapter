@@ -1,0 +1,24 @@
+package apps.wmn.daraja.c2b.repository;
+
+import apps.wmn.daraja.c2b.entity.MpesaConfig;
+import apps.wmn.daraja.c2b.enums.MpesaEnvironment;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+public interface MpesaConfigRepository
+    extends JpaRepository<MpesaConfig, Long>, JpaSpecificationExecutor<MpesaConfig> {
+  Optional<MpesaConfig> findByShortcodeAndEnvironmentAndActiveTrue(
+      String shortcode, MpesaEnvironment environment);
+
+  List<MpesaConfig> findByActiveTrue();
+
+  List<MpesaConfig> findByEnvironmentAndActiveTrue(MpesaEnvironment environment);
+
+  boolean existsByShortcodeAndEnvironment(String shortcode, MpesaEnvironment environment);
+
+  Optional<MpesaConfig> findByUuid(UUID uuid);
+}

@@ -1,19 +1,22 @@
 package apps.wmn.daraja.common.services.impl;
 
-import apps.wmn.daraja.common.config.DarajaConfig;
+import apps.wmn.daraja.c2b.service.MpesaConfigService;
 import apps.wmn.daraja.common.dto.AccessTokenResponse;
 import apps.wmn.daraja.common.exceptions.DarajaAuthException;
 import apps.wmn.daraja.common.services.DarajaAuthenticationService;
 import com.nimbusds.jose.util.Base64;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.*;
-import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.*;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 @Service
 @Slf4j
@@ -21,74 +24,73 @@ import java.util.Collections;
 public class DarajaAuthenticationServiceImpl implements DarajaAuthenticationService {
 
     private final RestTemplate restTemplate;
-    private final DarajaConfig darajaConfig;
-    private AccessTokenResponse cachedToken;
-    private LocalDateTime tokenExpiryTime;
+    private final MpesaConfigService configService;
+
+    // Cache structure: shortcode_environment -> token details
+    private final Map<String, TokenDetails> tokenCache = new ConcurrentHashMap<>();
 
     @Override
-    public String getAccessToken() {
-        if (isTokenValid()) {
-            log.debug("Using cached access token");
-            return cachedToken.accessToken();
+    @Cacheable(value = "authTokens", key = "#shortcode + '_' + #environment")
+    public String getAccessToken(String consumerKey, String consumerSecret, String shortcode, String environment){
+        String cacheKey = shortcode + "_" + environment;
+        TokenDetails cachedDetails = tokenCache.get(cacheKey);
+
+        if (isTokenValid(cachedDetails)) {
+            log.debug("Using cached access token for shortcode: {}", shortcode);
+            return cachedDetails.token;
         }
 
-        log.info("Generating new Daraja access token");
-        return generateNewAccessToken();
+        log.info("Generating new Daraja access token for shortcode: {}", shortcode);
+        return generateNewAccessToken(shortcode, environment, consumerKey, consumerSecret);
     }
 
     @Override
-    public String forceNewAccessToken() {
-        log.info("Forcing generation of new access token");
-        clearTokenCache();
-        return generateNewAccessToken();
+    @CacheEvict(value = "authTokens", key = "#shortcode + '_' + #environment")
+    public String forceNewAccessToken(String consumerKey, String consumerSecret, String shortcode, String environment) {
+        log.info("Forcing generation of new access token for shortcode: {}", shortcode);
+        String cacheKey = shortcode + "_" + environment;
+        tokenCache.remove(cacheKey);
+        return generateNewAccessToken(shortcode, environment, consumerKey, consumerSecret);
     }
 
     @Override
+    @CacheEvict(value = "authTokens", allEntries = true)
     public void clearTokenCache() {
-        log.debug("Clearing token cache");
-        this.cachedToken = null;
-        this.tokenExpiryTime = null;
+        log.debug("Clearing all token caches");
+        tokenCache.clear();
     }
 
-    /**
-     * Generates a new access token by calling the Daraja OAuth endpoint.
-     *
-     * @return Newly generated access token
-     * @throws DarajaAuthException if token generation fails
-     */
-    private String generateNewAccessToken() {
+    private String generateNewAccessToken(String shortcode, String environment, String consumerKey, String consumerSecret) {
         try {
-            HttpHeaders headers = createAuthHeaders();
+            // Prepare request
+            HttpHeaders headers = createAuthHeaders(consumerKey, consumerSecret);
             HttpEntity<String> request = new HttpEntity<>(headers);
 
+            String authUrl = getAuthUrl(environment);
+
             ResponseEntity<AccessTokenResponse> response = restTemplate.exchange(
-                    darajaConfig.getAuthUrl(),
+                    authUrl,
                     HttpMethod.GET,
                     request,
                     AccessTokenResponse.class
             );
 
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                updateTokenCache(response.getBody());
+                updateTokenCache(shortcode, environment, response.getBody());
                 return response.getBody().accessToken();
             }
 
             throw new DarajaAuthException("Failed to generate access token. Invalid response from Daraja API");
 
         } catch (Exception e) {
-            log.error("Error generating Daraja access token", e);
+            log.error("Error generating Daraja access token for shortcode: {}", shortcode, e);
             throw new DarajaAuthException("Failed to generate access token", e);
         }
     }
 
-    /**
-     * Creates HTTP headers with Basic authentication using consumer key and secret.
-     *
-     * @return HttpHeaders with authentication
-     */
-    private HttpHeaders createAuthHeaders() {
+    private HttpHeaders createAuthHeaders(String consumerKey, String consumerSecret) {
         HttpHeaders headers = new HttpHeaders();
-        String auth = darajaConfig.getConsumerKey() + ":" + darajaConfig.getConsumerSecret();
+        String auth = consumerKey + ":" + consumerSecret;
         byte[] encodedAuth = Base64.encode(auth.getBytes(StandardCharsets.UTF_8)).decode();
         String authHeader = "Basic " + new String(encodedAuth);
 
@@ -98,29 +100,36 @@ public class DarajaAuthenticationServiceImpl implements DarajaAuthenticationServ
         return headers;
     }
 
-    /**
-     * Updates the token cache with a new access token response.
-     *
-     * @param tokenResponse New access token response from Daraja API
-     */
-    private void updateTokenCache(AccessTokenResponse tokenResponse) {
-        this.cachedToken = tokenResponse;
-        // Set expiry time 3 minutes before actual expiry to ensure token validity
-        this.tokenExpiryTime = LocalDateTime.now()
-                .plusSeconds(tokenResponse.expiresIn())
-                .minusMinutes(3);
-        log.info("Access token cache updated. Valid until: {}", tokenExpiryTime);
+    private void updateTokenCache(String shortcode, String environment, AccessTokenResponse tokenResponse) {
+        String cacheKey = shortcode + "_" + environment;
+        TokenDetails details = new TokenDetails(
+                tokenResponse.accessToken(),
+                LocalDateTime.now()
+                        .plusSeconds(tokenResponse.expiresIn())
+                        .minusMinutes(3)
+        );
+        tokenCache.put(cacheKey, details);
+        log.info("Access token cache updated for shortcode: {}. Valid until: {}",
+                shortcode, details.expiryTime);
+    }
+
+    private boolean isTokenValid(TokenDetails details) {
+        return details != null && LocalDateTime.now().isBefore(details.expiryTime);
+    }
+
+    private String getAuthUrl(String environment) {
+        String baseUrl = "PRODUCTION".equalsIgnoreCase(environment)
+                ? "https://api.safaricom.co.ke"
+                : "https://sandbox.safaricom.co.ke";
+        return baseUrl + "/oauth/v1/generate?grant_type=client_credentials";
     }
 
     /**
-     * Checks if the cached token is still valid.
-     *
-     * @return true if token exists and is not expired, false otherwise
+     * Internal record to hold token details with expiry time
      */
-    private boolean isTokenValid() {
-        return cachedToken != null
-                && tokenExpiryTime != null
-                && LocalDateTime.now().isBefore(tokenExpiryTime);
-    }
+    private record TokenDetails(
+            String token,
+            LocalDateTime expiryTime
+    ) {}
 
 }

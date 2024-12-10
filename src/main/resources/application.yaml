@@ -1,6 +1,28 @@
+server.port: 20000
+
 spring:
   application:
     name: Daraja Integration Toolkit
 
   profiles:
     active: dev
+
+  modulith:
+    detection-strategy: explicitly-annotated
+    republish-outstanding-events-on-restart: true
+    events:
+      completion-mode: update
+
+  #Diallow JPA from managing the database schema
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migrations
+    baseline-on-migrate: true
