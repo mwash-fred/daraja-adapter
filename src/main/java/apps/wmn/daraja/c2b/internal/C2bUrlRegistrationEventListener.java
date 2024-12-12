@@ -32,7 +32,9 @@ public class C2bUrlRegistrationEventListener {
     log.debug("Received callback validation URL registration event: {}", event);
 
     MpesaConfig config = getMpesaConfig(event);
+    log.info("Mpesa config: {}", config);
     String accessToken = authenticateWithDaraja(config);
+    log.info("Access token: {}", accessToken);
     MpesaUrlRegistrationResponse response = registerCallbackUrls(event, accessToken);
 
     log.info("URL registration response: {}", response);
@@ -59,6 +61,8 @@ public class C2bUrlRegistrationEventListener {
   ) {
     HttpEntity<MpesaUrlRegistrationRequest> httpEntity = createHttpEntity(event, accessToken);
     String registrationUrl = getRegistrationUrl(event.environment());
+
+    log.info("HttpEntity: {}", httpEntity);
 
     return restTemplate.postForObject(
             registrationUrl,
