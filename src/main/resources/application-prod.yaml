@@ -1,0 +1,29 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/mpesa_payments
+    username: ${DCPIT_POSTGRES_USER}
+    password: ${DCPIT_POSTGRES_PASSWORD}
+
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    clean-disabled: false
+    validate-on-migrate: true
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://127.0.0.1:9090/realms/elimika
+
+encryption:
+  secret-key: "2f3a5c8d1b6e4f9072b3d5e8c6a7f0b41e9d2c3b5a7f1e6"
+  salt: "b4c1d9e3f2a5786f"
+
+mpesa:
+  environment: PRODUCTION
+
