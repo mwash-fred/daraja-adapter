@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/payments")
+@RequestMapping("/api/v1/daraja/payments")
 @Tag(name = "Mpesa Payments", description = "APIs for managing Mpesa payments and transactions")
 @RequiredArgsConstructor
 public class MpesaPaymentController {
