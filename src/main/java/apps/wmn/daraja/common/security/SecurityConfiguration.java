@@ -43,7 +43,7 @@ public class SecurityConfiguration {
                                 )
                                 .permitAll()
                                 .anyRequest()
-                                .authenticated()
+                                .permitAll()
                 )
                 .oauth2ResourceServer(auth ->
                         auth.jwt(token -> token.jwtAuthenticationConverter(new KeyCloakJwtAuthenticationConverter())));
@@ -57,7 +57,7 @@ public class SecurityConfiguration {
         final UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         final CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        config.setAllowedOrigins(Collections.singletonList("http://localhost:4200"));
+        config.setAllowedOrigins(Collections.singletonList("*"));
         config.setAllowedHeaders(Arrays.asList(
                 HttpHeaders.ORIGIN,
                 HttpHeaders.CONTENT_TYPE,

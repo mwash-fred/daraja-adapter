@@ -77,6 +77,7 @@ public class DarajaAuthenticationServiceImpl implements DarajaAuthenticationServ
 
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 updateTokenCache(shortcode, environment, response.getBody());
+                log.debug("Token {} generated successfully for shortcode: {}", response.getBody().accessToken(), shortcode);
                 return response.getBody().accessToken();
             }
 
@@ -90,12 +91,8 @@ public class DarajaAuthenticationServiceImpl implements DarajaAuthenticationServ
 
     private HttpHeaders createAuthHeaders(String consumerKey, String consumerSecret) {
         HttpHeaders headers = new HttpHeaders();
-        String auth = consumerKey + ":" + consumerSecret;
-        byte[] encodedAuth = Base64.encode(auth.getBytes(StandardCharsets.UTF_8)).decode();
-        String authHeader = "Basic " + new String(encodedAuth);
 
-        headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
-        headers.add("Authorization", authHeader);
+        headers.setBasicAuth(consumerKey, consumerSecret);
 
         return headers;
     }

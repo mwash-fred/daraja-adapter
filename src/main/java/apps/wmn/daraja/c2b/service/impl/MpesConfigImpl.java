@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.encrypt.TextEncryptor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -79,9 +81,9 @@ public class MpesConfigImpl implements MpesaConfigService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<MpesaConfig> listActiveConfigs() {
+    public Page<MpesaConfig> listActiveConfigs(Pageable pageable) {
         log.debug("Fetching all active configurations");
-        return configRepository.findByActiveTrue();
+        return configRepository.findByActiveTrue(pageable);
     }
 
     @Override

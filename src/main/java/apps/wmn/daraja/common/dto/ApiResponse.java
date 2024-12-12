@@ -1,8 +1,10 @@
 package apps.wmn.daraja.common.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@Schema(description = "Generic API Response wrapper")
 public record ApiResponse<T>(
         boolean success,
         T data,

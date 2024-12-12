@@ -2,6 +2,8 @@ package apps.wmn.daraja.c2b.service;
 
 import apps.wmn.daraja.c2b.entity.MpesaConfig;
 import apps.wmn.daraja.c2b.enums.MpesaEnvironment;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.UUID;
@@ -52,7 +54,7 @@ public interface MpesaConfigService {
      *
      * @return list of active configurations
      */
-    List<MpesaConfig> listActiveConfigs();
+    Page<MpesaConfig> listActiveConfigs(Pageable pageable);
 
     /**
      * Gets decrypted credentials for a configuration.

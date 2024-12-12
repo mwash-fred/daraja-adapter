@@ -4,8 +4,11 @@ import java.util.List;
 
 import apps.wmn.daraja.common.util.PageLinks;
 import apps.wmn.daraja.common.util.PageMetadata;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.data.domain.Page;
 
+
+@Schema(description = "Paged Response wrapper")
 public record PagedDTO<T>(
         List<T> content,
         PageMetadata metadata,

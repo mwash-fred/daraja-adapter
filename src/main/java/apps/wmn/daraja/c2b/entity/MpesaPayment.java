@@ -9,12 +9,19 @@ import java.time.LocalDateTime;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.Type;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 import org.hibernate.type.SqlTypes;
 
 @Entity
-@Table(name = "mpesa_payments") @Getter
-@Setter @AllArgsConstructor @NoArgsConstructor @SuperBuilder
+@Table(name = "mpesa_payments")
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
+@SuperBuilder
 public class MpesaPayment extends BaseEntity {
+
     @Column(name = "transaction_id")
     private String transactionId;
 
@@ -33,13 +40,11 @@ public class MpesaPayment extends BaseEntity {
     @Column(name = "transaction_desc")
     private String transactionDesc;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "transaction_type")
-    private TransactionType transactionType;
+    @Column(name = "transaction_type", columnDefinition = "transaction_type")
+    private String transactionType;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "transaction_status")
-    private TransactionStatus transactionStatus;
+    @Column(name = "transaction_status", columnDefinition = "transaction_status")
+    private String transactionStatus;
 
     @Column(name = "business_short_code")
     private String businessShortCode;
@@ -56,7 +61,6 @@ public class MpesaPayment extends BaseEntity {
     @Column(name = "third_party_trans_id")
     private String thirdPartyTransId;
 
-    // Customer details
     @Column(name = "msisdn")
     private String msisdn;
 
@@ -68,13 +72,6 @@ public class MpesaPayment extends BaseEntity {
 
     @Column(name = "last_name")
     private String lastName;
-
-    // Audit fields
-    @Column(name = "created_date")
-    private LocalDateTime createdDate;
-
-    @Column(name = "updated_date")
-    private LocalDateTime updatedDate;
 
     @Column(name = "completed_date")
     private LocalDateTime completedDate;
@@ -91,5 +88,5 @@ public class MpesaPayment extends BaseEntity {
     private String errorMessage;
 
     @Column(name = "retry_count", nullable = false)
-    private Integer retryCount;
+    private Integer retryCount = 0;
 }

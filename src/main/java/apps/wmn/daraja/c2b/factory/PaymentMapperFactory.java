@@ -2,54 +2,44 @@ package apps.wmn.daraja.c2b.factory;
 
 import apps.wmn.daraja.c2b.dto.*;
 import apps.wmn.daraja.c2b.entity.MpesaPayment;
-import apps.wmn.daraja.c2b.enums.TransactionStatus;
-import apps.wmn.daraja.c2b.enums.TransactionType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Map;
 
-/**
- * Factory class for converting between Payment entities and DTOs
- */
+@Slf4j
 public class PaymentMapperFactory {
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    private PaymentMapperFactory() {
-        // Private constructor to prevent instantiation
-    }
+    private PaymentMapperFactory() {}
 
-    /**
-     * Creates a new MpesaPayment entity from STK Push request
-     */
     public static MpesaPayment toEntity(StkPushRequest request) {
         return MpesaPayment.builder()
                 .phoneNumber(request.phoneNumber())
                 .amount(request.amount())
                 .accountReference(request.accountReference())
                 .transactionDesc(request.transactionDesc())
-                .transactionType(TransactionType.STK_PUSH)
-                .transactionStatus(TransactionStatus.PENDING)
+                .transactionType("STK_PUSH")
+                .transactionStatus("PENDING")
+                .currency("KES")
+                .businessShortCode(request.shortCode())
                 .rawRequest(toJson(request))
+                .retryCount(0)
                 .build();
     }
 
-    /**
-     * Updates entity with STK Push response
-     */
     public static void updateWithStkResponse(MpesaPayment entity, StkPushResponse response) {
         entity.setTransactionId(response.merchantRequestId());
         entity.setRawCallback(toJson(response));
     }
 
-    /**
-     * Updates entity with STK callback data
-     */
     public static void updateWithStkCallback(MpesaPayment entity, StkCallback callback) {
         Map<String, Object> metadata = extractStkMetadata(callback.callbackMetadata());
 
-        entity.setTransactionStatus("0".equals(callback.resultCode())
-                ? TransactionStatus.COMPLETED
-                : TransactionStatus.FAILED);
+        entity.setTransactionStatus("0".equals(callback.resultCode()) ? "COMPLETED" : "FAILED");
         entity.setCompletedDate(java.time.LocalDateTime.now());
         entity.setMsisdn((String) metadata.get("PhoneNumber"));
         entity.setTransactionId((String) metadata.get("MpesaReceiptNumber"));
@@ -60,29 +50,69 @@ public class PaymentMapperFactory {
         }
     }
 
-    /**
-     * Updates entity with C2B callback data
-     */
     public static void updateWithC2BCallback(MpesaPayment entity, C2bCallback callback) {
+        log.debug("C2B callback received: {}", callback);
         entity.setTransactionId(callback.transId());
         entity.setMsisdn(callback.msisdn());
-        entity.setAmount(new java.math.BigDecimal(callback.transAmount()));
+        entity.setPhoneNumber(callback.msisdn());
+        entity.setCurrency("KES");
+
+        try {
+            String amount = callback.transAmount() != null && !callback.transAmount().isBlank() ?
+                    callback.transAmount() : "0.0";
+            entity.setAmount(new java.math.BigDecimal(amount));
+        } catch (NumberFormatException e) {
+            log.warn("Invalid amount format in callback: {}", callback.transAmount());
+            entity.setAmount(java.math.BigDecimal.ZERO);
+        }
+
         entity.setBillRefNumber(callback.billRefNumber());
-        entity.setTransactionType(TransactionType.valueOf(callback.transactionType()));
-        entity.setTransactionStatus(TransactionStatus.COMPLETED);
-        entity.setCompletedDate(java.time.LocalDateTime.now());
-        entity.setBillRefNumber(callback.billRefNumber());
-        entity.setOrgAccountBalance(new java.math.BigDecimal(callback.orgAccountBalance()));
+        entity.setBusinessShortCode(callback.businessShortCode());
+
+        try {
+            String transType = callback.transactionType() != null ?
+                    callback.transactionType().toUpperCase().replaceAll("\\s+", "") :
+                    "PAYBILL";
+            entity.setTransactionType(transType);
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid transaction type: {}", callback.transactionType());
+            entity.setTransactionType("PAYBILL");
+        }
+
+        entity.setTransactionStatus("COMPLETED");
+
+        try {
+            // Parse transaction time from format "yyyyMMddHHmmss"
+            if (callback.transTime() != null && !callback.transTime().isBlank()) {
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+                LocalDateTime transactionTime = LocalDateTime.parse(callback.transTime(), formatter);
+                entity.setCompletedDate(transactionTime);
+            } else {
+                entity.setCompletedDate(LocalDateTime.now());
+            }
+        } catch (DateTimeParseException e) {
+            log.warn("Invalid transaction time format: {}", callback.transTime());
+            entity.setCompletedDate(LocalDateTime.now());
+        }
+
+        try {
+            String balance = callback.orgAccountBalance() != null && !callback.orgAccountBalance().isBlank() ?
+                    callback.orgAccountBalance() : "0.0";
+            entity.setOrgAccountBalance(new java.math.BigDecimal(balance));
+        } catch (NumberFormatException e) {
+            log.warn("Invalid org account balance format: {}", callback.orgAccountBalance());
+            entity.setOrgAccountBalance(java.math.BigDecimal.ZERO);
+        }
+
         entity.setThirdPartyTransId(callback.thirdPartyTransId());
         entity.setFirstName(callback.firstName());
         entity.setMiddleName(callback.middleName());
         entity.setLastName(callback.lastName());
         entity.setRawCallback(toJson(callback));
+
+        log.info("Mpesa payment callback processed successfully {}", entity);
     }
 
-    /**
-     * Converts entity to view DTO
-     */
     public static PaymentView toView(MpesaPayment entity) {
         return new PaymentView(
                 entity.getUuid(),
@@ -92,16 +122,13 @@ public class PaymentMapperFactory {
                 entity.getCurrency(),
                 entity.getAccountReference(),
                 entity.getTransactionDesc(),
-                entity.getTransactionType().name(),
-                entity.getTransactionStatus().name(),
+                entity.getTransactionType(),
+                entity.getTransactionStatus(),
                 entity.getCreatedDate(),
                 entity.getCompletedDate()
         );
     }
 
-    /**
-     * Extracts metadata from STK callback
-     */
     private static Map<String, Object> extractStkMetadata(StkCallback.CallbackMetadata metadata) {
         return java.util.Arrays.stream(metadata.items())
                 .collect(java.util.stream.Collectors.toMap(
@@ -110,9 +137,6 @@ public class PaymentMapperFactory {
                 ));
     }
 
-    /**
-     * Converts object to JSON string
-     */
     private static String toJson(Object obj) {
         try {
             return objectMapper.writeValueAsString(obj);

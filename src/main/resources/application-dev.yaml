@@ -26,11 +26,12 @@ encryption:
   salt: "c8e6d42a1f953b7e"
 
 mpesa:
-  environment: SANDBOX
+  environment: PRODUCTION
 
 logging:
   level:
-    com.fortuneconnectltd.com.notifications: DEBUG
+    apps.wmn.daraja: DEBUG
     org.springframework.security: DEBUG
     org.keycloak: DEBUG
+    io.swagger.v3: DEBUG
 
