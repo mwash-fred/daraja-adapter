@@ -1,8 +1,8 @@
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/mpesa_payments
-    username: ${DCPIT_POSTGRES_USER}
-    password: ${DCPIT_POSTGRES_PASSWORD}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
 
   jpa:
     show-sql: true
