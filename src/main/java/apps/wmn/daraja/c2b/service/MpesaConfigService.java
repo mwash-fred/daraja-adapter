@@ -70,6 +70,7 @@ public interface MpesaConfigService {
     record MpesaCredentials(
             String consumerKey,
             String consumerSecret,
-            String passkey
+            String passkey,
+            String securityCredential
     ) {}
 }

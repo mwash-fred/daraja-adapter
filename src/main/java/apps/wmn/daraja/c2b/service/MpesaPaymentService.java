@@ -1,6 +1,7 @@
 package apps.wmn.daraja.c2b.service;
 
 import apps.wmn.daraja.c2b.dto.*;
+import apps.wmn.daraja.c2b.enums.MpesaEnvironment;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import java.time.LocalDateTime;
@@ -15,7 +16,7 @@ public interface MpesaPaymentService {
     /**
      * Initiates an STK push request
      */
-    StkPushResponse initiateSTKPush(StkPushRequest request);
+    StkPushResponse initiateSTKPush(StkPushRequest request, MpesaEnvironment environment);
 
     /**
      * Processes STK callback from M-Pesa

@@ -4,7 +4,6 @@ import apps.wmn.daraja.c2b.dto.*;
 import apps.wmn.daraja.c2b.entity.MpesaPayment;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -19,6 +18,7 @@ public class PaymentMapperFactory {
     public static MpesaPayment toEntity(StkPushRequest request) {
         return MpesaPayment.builder()
                 .phoneNumber(request.phoneNumber())
+                .payerIdentifier(request.phoneNumber())
                 .amount(request.amount())
                 .accountReference(request.accountReference())
                 .transactionDesc(request.transactionDesc())
@@ -26,6 +26,7 @@ public class PaymentMapperFactory {
                 .transactionStatus("PENDING")
                 .currency("KES")
                 .businessShortCode(request.shortCode())
+                .payeeIdentifier(request.shortCode())
                 .rawRequest(toJson(request))
                 .retryCount(0)
                 .build();
@@ -40,8 +41,10 @@ public class PaymentMapperFactory {
         Map<String, Object> metadata = extractStkMetadata(callback.callbackMetadata());
 
         entity.setTransactionStatus("0".equals(callback.resultCode()) ? "COMPLETED" : "FAILED");
-        entity.setCompletedDate(java.time.LocalDateTime.now());
+        entity.setCompletedDate(LocalDateTime.now());
         entity.setMsisdn((String) metadata.get("PhoneNumber"));
+        entity.setPhoneNumber((String) metadata.get("PhoneNumber"));
+        entity.setPayerIdentifier((String) metadata.get("PhoneNumber"));
         entity.setTransactionId((String) metadata.get("MpesaReceiptNumber"));
         entity.setRawCallback(toJson(callback));
 
@@ -55,6 +58,8 @@ public class PaymentMapperFactory {
         entity.setTransactionId(callback.transId());
         entity.setMsisdn(callback.msisdn());
         entity.setPhoneNumber(callback.msisdn());
+        entity.setPayerIdentifier(callback.msisdn());
+        entity.setPayeeIdentifier(callback.businessShortCode());
         entity.setCurrency("KES");
 
         try {
@@ -69,40 +74,11 @@ public class PaymentMapperFactory {
         entity.setBillRefNumber(callback.billRefNumber());
         entity.setBusinessShortCode(callback.businessShortCode());
 
-        try {
-            String transType = callback.transactionType() != null ?
-                    callback.transactionType().toUpperCase().replaceAll("\\s+", "") :
-                    "PAYBILL";
-            entity.setTransactionType(transType);
-        } catch (IllegalArgumentException e) {
-            log.warn("Invalid transaction type: {}", callback.transactionType());
-            entity.setTransactionType("PAYBILL");
-        }
-
+        String transType = determineTransactionType(callback.transactionType());
+        entity.setTransactionType(transType);
         entity.setTransactionStatus("COMPLETED");
-
-        try {
-            // Parse transaction time from format "yyyyMMddHHmmss"
-            if (callback.transTime() != null && !callback.transTime().isBlank()) {
-                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
-                LocalDateTime transactionTime = LocalDateTime.parse(callback.transTime(), formatter);
-                entity.setCompletedDate(transactionTime);
-            } else {
-                entity.setCompletedDate(LocalDateTime.now());
-            }
-        } catch (DateTimeParseException e) {
-            log.warn("Invalid transaction time format: {}", callback.transTime());
-            entity.setCompletedDate(LocalDateTime.now());
-        }
-
-        try {
-            String balance = callback.orgAccountBalance() != null && !callback.orgAccountBalance().isBlank() ?
-                    callback.orgAccountBalance() : "0.0";
-            entity.setOrgAccountBalance(new java.math.BigDecimal(balance));
-        } catch (NumberFormatException e) {
-            log.warn("Invalid org account balance format: {}", callback.orgAccountBalance());
-            entity.setOrgAccountBalance(java.math.BigDecimal.ZERO);
-        }
+        setCompletedDate(entity, callback.transTime());
+        setOrgAccountBalance(entity, callback.orgAccountBalance());
 
         entity.setThirdPartyTransId(callback.thirdPartyTransId());
         entity.setFirstName(callback.firstName());
@@ -119,14 +95,58 @@ public class PaymentMapperFactory {
                 entity.getTransactionId(),
                 entity.getPhoneNumber(),
                 entity.getAmount(),
+                entity.getChargesAmount(),
                 entity.getCurrency(),
                 entity.getAccountReference(),
                 entity.getTransactionDesc(),
                 entity.getTransactionType(),
                 entity.getTransactionStatus(),
+                entity.getPayerIdentifier(),
+                entity.getPayeeIdentifier(),
                 entity.getCreatedDate(),
                 entity.getCompletedDate()
         );
+    }
+
+    private static String determineTransactionType(String rawType) {
+        try {
+            if (rawType == null || rawType.isBlank()) {
+                return "PAYBILL_COLLECTION";
+            }
+            String processedType = rawType.toUpperCase().replaceAll("\\s+", "");
+            if (processedType.contains("BUYGOODS")) {
+                return "BUY_GOODS_COLLECTION";
+            }
+            return "PAYBILL_COLLECTION";
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid transaction type: {}", rawType);
+            return "PAYBILL_COLLECTION";
+        }
+    }
+
+    private static void setCompletedDate(MpesaPayment entity, String transTime) {
+        try {
+            if (transTime != null && !transTime.isBlank()) {
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+                LocalDateTime transactionTime = LocalDateTime.parse(transTime, formatter);
+                entity.setCompletedDate(transactionTime);
+            } else {
+                entity.setCompletedDate(LocalDateTime.now());
+            }
+        } catch (DateTimeParseException e) {
+            log.warn("Invalid transaction time format: {}", transTime);
+            entity.setCompletedDate(LocalDateTime.now());
+        }
+    }
+
+    private static void setOrgAccountBalance(MpesaPayment entity, String balance) {
+        try {
+            String balanceValue = balance != null && !balance.isBlank() ? balance : "0.0";
+            entity.setOrgAccountBalance(new java.math.BigDecimal(balanceValue));
+        } catch (NumberFormatException e) {
+            log.warn("Invalid org account balance format: {}", balance);
+            entity.setOrgAccountBalance(java.math.BigDecimal.ZERO);
+        }
     }
 
     private static Map<String, Object> extractStkMetadata(StkCallback.CallbackMetadata metadata) {

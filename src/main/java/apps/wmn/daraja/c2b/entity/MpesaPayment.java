@@ -1,17 +1,13 @@
 package apps.wmn.daraja.c2b.entity;
 
-import apps.wmn.daraja.c2b.enums.TransactionStatus;
-import apps.wmn.daraja.c2b.enums.TransactionType;
 import apps.wmn.daraja.common.entity.BaseEntity;
 import jakarta.persistence.*;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.annotations.Type;
-import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 import org.hibernate.type.SqlTypes;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "mpesa_payments")
@@ -25,8 +21,14 @@ public class MpesaPayment extends BaseEntity {
     @Column(name = "transaction_id")
     private String transactionId;
 
-    @Column(name = "phone_number")
-    private String phoneNumber;
+    @Column(name = "origin_transaction_id")
+    private String originTransactionId;
+
+    @Column(name = "transaction_type")
+    private String transactionType;
+
+    @Column(name = "transaction_status")
+    private String transactionStatus;
 
     @Column(name = "amount")
     private BigDecimal amount;
@@ -34,20 +36,29 @@ public class MpesaPayment extends BaseEntity {
     @Column(name = "currency")
     private String currency;
 
-    @Column(name = "account_reference")
-    private String accountReference;
+    @Column(name = "charges_amount")
+    private BigDecimal chargesAmount;
 
-    @Column(name = "transaction_desc")
-    private String transactionDesc;
-
-    @Column(name = "transaction_type", columnDefinition = "transaction_type")
-    private String transactionType;
-
-    @Column(name = "transaction_status", columnDefinition = "transaction_status")
-    private String transactionStatus;
+    @Column(name = "org_account_balance")
+    private BigDecimal orgAccountBalance;
 
     @Column(name = "business_short_code")
     private String businessShortCode;
+
+    @Column(name = "initiator_identifier")
+    private String initiatorIdentifier;
+
+    @Column(name = "phone_number")
+    private String phoneNumber;
+
+    @Column(name = "payer_identifier")
+    private String payerIdentifier;
+
+    @Column(name = "payee_identifier")
+    private String payeeIdentifier;
+
+    @Column(name = "account_reference")
+    private String accountReference;
 
     @Column(name = "bill_ref_number")
     private String billRefNumber;
@@ -55,8 +66,8 @@ public class MpesaPayment extends BaseEntity {
     @Column(name = "invoice_number")
     private String invoiceNumber;
 
-    @Column(name = "org_account_balance")
-    private BigDecimal orgAccountBalance;
+    @Column(name = "transaction_desc")
+    private String transactionDesc;
 
     @Column(name = "third_party_trans_id")
     private String thirdPartyTransId;
@@ -87,6 +98,6 @@ public class MpesaPayment extends BaseEntity {
     @Column(name = "error_message")
     private String errorMessage;
 
-    @Column(name = "retry_count", nullable = false)
+    @Column(name = "retry_count")
     private Integer retryCount = 0;
 }

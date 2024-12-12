@@ -1,6 +1,7 @@
 package apps.wmn.daraja.c2b.controllers;
 
 import apps.wmn.daraja.c2b.dto.*;
+import apps.wmn.daraja.c2b.enums.MpesaEnvironment;
 import apps.wmn.daraja.c2b.service.MpesaPaymentService;
 import apps.wmn.daraja.common.dto.ApiResponse;
 import apps.wmn.daraja.common.dto.PagedDTO;
@@ -25,7 +26,7 @@ import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/mpesa/payments")
+@RequestMapping("/api/v1/payments")
 @Tag(name = "Mpesa Payments", description = "APIs for managing Mpesa payments and transactions")
 @RequiredArgsConstructor
 public class MpesaPaymentController {
@@ -53,7 +54,7 @@ public class MpesaPaymentController {
     log.info("Received STK push request for phone: {}", request.phoneNumber());
     return ResponseEntity.ok(
         ApiResponse.success(
-            paymentService.initiateSTKPush(request), "STK Push initiated successfully"));
+            paymentService.initiateSTKPush(request, MpesaEnvironment.valueOf(request.environment())), "STK Push initiated successfully"));
   }
 
   @Operation(

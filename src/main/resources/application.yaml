@@ -26,3 +26,14 @@ spring:
     enabled: true
     locations: classpath:db/migrations
     baseline-on-migrate: true
+
+mpesa:
+  urls:
+    sandbox:
+      auth-url: https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials
+      register-url: https://sandbox.safaricom.co.ke/mpesa/c2b/v1/registerurl
+      stk-push-url: https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest
+    prod:
+      auth-url: https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials
+      register-url: https://api.safaricom.co.ke/mpesa/c2b/v1/registerurl
+      stk-push-url: https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest

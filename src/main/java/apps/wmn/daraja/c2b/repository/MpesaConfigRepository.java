@@ -23,4 +23,6 @@ public interface MpesaConfigRepository
   boolean existsByShortcodeAndEnvironment(String shortcode, MpesaEnvironment environment);
 
   Optional<MpesaConfig> findByUuid(UUID uuid);
+
+  Optional<MpesaConfig> findByShortcodeAndEnvironment(String shortcode, MpesaEnvironment environment);
 }

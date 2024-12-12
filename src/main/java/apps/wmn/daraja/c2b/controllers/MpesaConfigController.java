@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/mpesa/config")
+@RequestMapping("/api/v1/daraja/config")
 @Tag(name = "Mpesa Configuration", description = "APIs for managing Mpesa integration configurations")
 @RequiredArgsConstructor
 public class MpesaConfigController {

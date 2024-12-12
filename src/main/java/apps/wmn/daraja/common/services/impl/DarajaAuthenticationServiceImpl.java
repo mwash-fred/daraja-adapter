@@ -1,37 +1,38 @@
 package apps.wmn.daraja.common.services.impl;
 
+import apps.wmn.daraja.c2b.enums.MpesaEnvironment;
 import apps.wmn.daraja.c2b.service.MpesaConfigService;
+import apps.wmn.daraja.common.config.MpesaUrlConfig;
 import apps.wmn.daraja.common.dto.AccessTokenResponse;
 import apps.wmn.daraja.common.exceptions.DarajaAuthException;
 import apps.wmn.daraja.common.services.DarajaAuthenticationService;
-import com.nimbusds.jose.util.Base64;
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.*;
+import org.springframework.security.crypto.encrypt.TextEncryptor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+
+import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class DarajaAuthenticationServiceImpl implements DarajaAuthenticationService {
+    private final TextEncryptor textEncryptor;
 
     private final RestTemplate restTemplate;
-    private final MpesaConfigService configService;
+    private final MpesaUrlConfig mpesaUrlConfig;
 
-    // Cache structure: shortcode_environment -> token details
     private final Map<String, TokenDetails> tokenCache = new ConcurrentHashMap<>();
 
     @Override
     @Cacheable(value = "authTokens", key = "#shortcode + '_' + #environment")
-    public String getAccessToken(String consumerKey, String consumerSecret, String shortcode, String environment){
+    public String getAccessToken(String consumerKey, String consumerSecret, String shortcode, MpesaEnvironment environment) {
         String cacheKey = shortcode + "_" + environment;
         TokenDetails cachedDetails = tokenCache.get(cacheKey);
 
@@ -46,7 +47,7 @@ public class DarajaAuthenticationServiceImpl implements DarajaAuthenticationServ
 
     @Override
     @CacheEvict(value = "authTokens", key = "#shortcode + '_' + #environment")
-    public String forceNewAccessToken(String consumerKey, String consumerSecret, String shortcode, String environment) {
+    public String forceNewAccessToken(String consumerKey, String consumerSecret, String shortcode, MpesaEnvironment environment) {
         log.info("Forcing generation of new access token for shortcode: {}", shortcode);
         String cacheKey = shortcode + "_" + environment;
         tokenCache.remove(cacheKey);
@@ -60,9 +61,8 @@ public class DarajaAuthenticationServiceImpl implements DarajaAuthenticationServ
         tokenCache.clear();
     }
 
-    private String generateNewAccessToken(String shortcode, String environment, String consumerKey, String consumerSecret) {
+    private String generateNewAccessToken(String shortcode, MpesaEnvironment environment, String consumerKey, String consumerSecret) {
         try {
-            // Prepare request
             HttpHeaders headers = createAuthHeaders(consumerKey, consumerSecret);
             HttpEntity<String> request = new HttpEntity<>(headers);
 
@@ -90,14 +90,13 @@ public class DarajaAuthenticationServiceImpl implements DarajaAuthenticationServ
     }
 
     private HttpHeaders createAuthHeaders(String consumerKey, String consumerSecret) {
+        log.info("Consumer Key {} Consumer Secret {}", textEncryptor.decrypt(consumerKey), textEncryptor.decrypt(consumerSecret));
         HttpHeaders headers = new HttpHeaders();
-
-        headers.setBasicAuth(consumerKey, consumerSecret);
-
+        headers.setBasicAuth(textEncryptor.decrypt(consumerKey), textEncryptor.decrypt(consumerSecret));
         return headers;
     }
 
-    private void updateTokenCache(String shortcode, String environment, AccessTokenResponse tokenResponse) {
+    private void updateTokenCache(String shortcode, MpesaEnvironment environment, AccessTokenResponse tokenResponse) {
         String cacheKey = shortcode + "_" + environment;
         TokenDetails details = new TokenDetails(
                 tokenResponse.accessToken(),
@@ -106,27 +105,18 @@ public class DarajaAuthenticationServiceImpl implements DarajaAuthenticationServ
                         .minusMinutes(3)
         );
         tokenCache.put(cacheKey, details);
-        log.info("Access token cache updated for shortcode: {}. Valid until: {}",
-                shortcode, details.expiryTime);
+        log.info("Access token cache updated for shortcode: {}. Valid until: {}", shortcode, details.expiryTime);
     }
 
     private boolean isTokenValid(TokenDetails details) {
         return details != null && LocalDateTime.now().isBefore(details.expiryTime);
     }
 
-    private String getAuthUrl(String environment) {
-        String baseUrl = "PRODUCTION".equalsIgnoreCase(environment)
-                ? "https://api.safaricom.co.ke"
-                : "https://sandbox.safaricom.co.ke";
-        return baseUrl + "/oauth/v1/generate?grant_type=client_credentials";
+    private String getAuthUrl(MpesaEnvironment environment) {
+        return environment.equals(MpesaEnvironment.PRODUCTION)
+                ? mpesaUrlConfig.getUrls().getProd().getAuthUrl()
+                : mpesaUrlConfig.getUrls().getSandbox().getAuthUrl();
     }
 
-    /**
-     * Internal record to hold token details with expiry time
-     */
-    private record TokenDetails(
-            String token,
-            LocalDateTime expiryTime
-    ) {}
-
+    private record TokenDetails(String token, LocalDateTime expiryTime) {}
 }

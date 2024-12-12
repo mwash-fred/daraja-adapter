@@ -1,5 +1,6 @@
 package apps.wmn.daraja.common.services;
 
+import apps.wmn.daraja.c2b.enums.MpesaEnvironment;
 import apps.wmn.daraja.common.exceptions.DarajaAuthException;
 
 public interface DarajaAuthenticationService {
@@ -13,7 +14,7 @@ public interface DarajaAuthenticationService {
      * @return Valid access token string
      * @throws DarajaAuthException if token generation fails
      */
-    String getAccessToken(String consumerKey, String consumerSecret, String shortcode, String environment);
+    String getAccessToken(String consumerKey, String consumerSecret, String shortcode, MpesaEnvironment environment);
 
     /**
      * Forces the generation of a new access token for a specific shortcode,
@@ -24,7 +25,7 @@ public interface DarajaAuthenticationService {
      * @return New access token
      * @throws DarajaAuthException if token generation fails
      */
-    String forceNewAccessToken(String consumerKey, String consumerSecret, String shortcode, String environment);
+    String forceNewAccessToken(String consumerKey, String consumerSecret, String shortcode, MpesaEnvironment environment);
 
     /**
      * Clears all cached authentication tokens.

@@ -65,4 +65,14 @@ public record StkPushRequest(
         @Pattern(regexp = "^\\d{5,7}$", message = "Shortcode must be 5-7 digits")
         @JsonProperty("short_code")
         @NotBlank(message = "Shortcode is required")
-        String shortCode) {}
+        String shortCode,
+
+        @Schema(
+            description = "M-Pesa environment (SANDBOX/PRODUCTION)",
+            example = "SANDBOX",
+            requiredMode = Schema.RequiredMode.REQUIRED,
+            pattern = "SANDBOX|PRODUCTION")
+        @Pattern(regexp = "SANDBOX|PRODUCTION", message = "Environment must be SANDBOX or PRODUCTION")
+        @JsonProperty("environment")
+        @NotBlank(message = "Environment is required")
+        String environment) {}
